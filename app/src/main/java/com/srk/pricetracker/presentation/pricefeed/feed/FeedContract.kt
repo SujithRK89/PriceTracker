@@ -1,7 +1,7 @@
 package com.srk.pricetracker.presentation.pricefeed.feed
 
 import androidx.compose.runtime.Immutable
-import com.srk.pricetracker.presentation.pricefeed.model.Stock
+import com.srk.pricetracker.presentation.pricefeed.model.StockUiModel
 
 object FeedContract {
 
@@ -10,7 +10,8 @@ object FeedContract {
         val isLoading: Boolean = false,
         val connected: Boolean = true,
         val running: Boolean = false,
-        val stocks: List<Stock> = emptyList()
+        val stocks: List<StockUiModel> = emptyList(),
+        val error: String? = null
     )
 
     sealed interface Intent {
@@ -18,6 +19,7 @@ object FeedContract {
         data object OnStop: Intent
         data object OnBackClicked: Intent
         data class OnFeedClicked(val id: String): Intent
+        data object DismissError : Intent
     }
 
     sealed interface Effect {
