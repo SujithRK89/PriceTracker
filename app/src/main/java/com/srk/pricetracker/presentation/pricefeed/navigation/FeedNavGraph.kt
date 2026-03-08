@@ -16,7 +16,12 @@ fun NavGraphBuilder.feedNavGraph() {
     ) {
         composable<FeedDestinations.FeedScreen> {
             val navigator = LocalNavigator.current
-            FeedScreen()
+            FeedScreen(
+                onNavigateBack = navigator::navigateUp,
+                onNavigateToFeedDetails = { id ->
+                    navigator.navigate(FeedDestinations.FeedDetailsScreen(id = id))
+                }
+            )
         }
         composable<FeedDestinations.FeedDetailsScreen> {
             val navigator = LocalNavigator.current
