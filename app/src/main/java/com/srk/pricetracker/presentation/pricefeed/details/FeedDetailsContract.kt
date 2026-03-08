@@ -10,7 +10,8 @@ object FeedDetailsContract {
         val isLoading: Boolean = false,
         val stock: StockUiModel? = null,
         val description: String = "",
-        val error: String? = null
+        val error: String? = null,
+        val isConnected: Boolean = false
     )
 
     sealed interface Intent {

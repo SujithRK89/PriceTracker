@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.srk.pricetracker.core.network.NetworkResult
+import com.srk.pricetracker.domain.usecase.GetConnectionStatusUseCase
+import com.srk.pricetracker.domain.usecase.GetIsRunningUseCase
 import com.srk.pricetracker.domain.usecase.GetStockDetailsUseCase
+import com.srk.pricetracker.domain.usecase.StartFeedUseCase
 import com.srk.pricetracker.presentation.pricefeed.model.toUi
 import com.srk.pricetracker.presentation.pricefeed.navigation.FeedDestinations
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +19,10 @@ import javax.inject.Inject
 @HiltViewModel
 class FeedDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val getStockDetailsUseCase: GetStockDetailsUseCase
+    private val getStockDetailsUseCase: GetStockDetailsUseCase,
+    private val startFeedUseCase: StartFeedUseCase,
+    private val getIsRunningUseCase: GetIsRunningUseCase,
+    private val getConnectionStatusUseCase: GetConnectionStatusUseCase
 ) : ViewModel() {
     private val route = savedStateHandle.toRoute<FeedDestinations.FeedDetailsScreen>()
     
@@ -26,8 +32,9 @@ class FeedDetailsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(FeedDetailsContract.UiState())
     val state: StateFlow<FeedDetailsContract.UiState> = combine(
         getStockDetailsUseCase(route.id),
+        getConnectionStatusUseCase(),
         _uiState
-    ) { result, currentState ->
+    ) { result, isConnected, currentState ->
         when (result) {
             is NetworkResult.Success -> {
                 val stockUi = result.data?.toUi()
@@ -35,17 +42,22 @@ class FeedDetailsViewModel @Inject constructor(
                     stock = stockUi,
                     description = stockUi?.description ?: "No description available.",
                     isLoading = false,
-                    error = null
+                    error = null,
+                    isConnected = isConnected
                 )
             }
             is NetworkResult.Error -> {
                 currentState.copy(
                     isLoading = false,
-                    error = result.message
+                    error = result.message,
+                    isConnected = isConnected
                 )
             }
             is NetworkResult.Loading -> {
-                currentState.copy(isLoading = true)
+                currentState.copy(
+                    isLoading = true,
+                    isConnected = isConnected
+                )
             }
         }
     }.stateIn(
@@ -53,6 +65,19 @@ class FeedDetailsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = FeedDetailsContract.UiState(isLoading = true)
     )
+
+    init {
+        checkAndStartFeed()
+    }
+
+    private fun checkAndStartFeed() {
+        viewModelScope.launch {
+            val isRunning = getIsRunningUseCase().first()
+            if (!isRunning) {
+                startFeedUseCase()
+            }
+        }
+    }
 
     fun onIntent(intent: FeedDetailsContract.Intent) {
         when (intent) {
