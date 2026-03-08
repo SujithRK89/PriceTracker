@@ -2,52 +2,88 @@ package com.srk.pricetracker.presentation.pricefeed.feed
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.srk.pricetracker.presentation.pricefeed.model.Stock
+import com.srk.pricetracker.core.network.NetworkResult
+import com.srk.pricetracker.domain.usecase.*
+import com.srk.pricetracker.presentation.pricefeed.model.toUi
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class FeedViewModel @Inject constructor() : ViewModel() {
+class FeedViewModel @Inject constructor(
+    private val getStocksUseCase: GetStocksUseCase,
+    private val startFeedUseCase: StartFeedUseCase,
+    private val stopFeedUseCase: StopFeedUseCase,
+    private val getConnectionStatusUseCase: GetConnectionStatusUseCase,
+    private val getIsRunningUseCase: GetIsRunningUseCase
+) : ViewModel() {
+
     private val _state = MutableStateFlow(FeedContract.UiState())
-    val state = _state.asStateFlow()
+    
+    val state: StateFlow<FeedContract.UiState> = combine(
+        getStocksUseCase(),
+        getConnectionStatusUseCase(),
+        getIsRunningUseCase(),
+        _state
+    ) { stocksResult, connected, running, state ->
+        when (stocksResult) {
+            is NetworkResult.Success -> {
+                state.copy(
+                    stocks = stocksResult.data.map { it.toUi() }.sortedByDescending { it.price },
+                    connected = connected,
+                    running = running,
+                    isLoading = false,
+                    error = null
+                )
+            }
+            is NetworkResult.Error -> {
+                state.copy(
+                    error = stocksResult.message,
+                    isLoading = false,
+                    connected = connected,
+                    running = running
+                )
+            }
+            is NetworkResult.Loading -> {
+                state.copy(
+                    isLoading = true,
+                    connected = connected,
+                    running = running
+                )
+            }
+        }
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = FeedContract.UiState(isLoading = true)
+    )
 
     private val _effect = MutableSharedFlow<FeedContract.Effect>()
     val effect = _effect.asSharedFlow()
 
     fun onIntent(intent: FeedContract.Intent) {
-        when (intent) {
-            FeedContract.Intent.OnBackClicked -> {
-                viewModelScope.launch {
+        viewModelScope.launch {
+            when (intent) {
+                FeedContract.Intent.OnBackClicked -> {
                     _effect.emit(FeedContract.Effect.NavigateBack)
                 }
-            }
-            is FeedContract.Intent.OnFeedClicked -> {
-                viewModelScope.launch {
+                is FeedContract.Intent.OnFeedClicked -> {
                     _effect.emit(FeedContract.Effect.NavigateToFeedDetails(intent.id))
                 }
+                FeedContract.Intent.OnStart -> {
+                    startFeedUseCase()
+                }
+                FeedContract.Intent.OnStop -> {
+                    stopFeedUseCase()
+                }
+                FeedContract.Intent.DismissError -> {
+                    _state.update { it.copy(error = null) }
+                }
             }
-            FeedContract.Intent.OnStart -> {
-                _state.update { it.copy(running = true) }
-                // TODO: Start price feed updates
-            }
-            FeedContract.Intent.OnStop -> {
-                _state.update { it.copy(running = false) }
-                // TODO: Stop price feed updates
-            }
-        }
-    }
-
-    fun updateStocks(stocks: List<Stock>) {
-        _state.update { currentState ->
-            currentState.copy(
-                stocks = stocks.sortedByDescending { it.price }
-            )
         }
     }
 }

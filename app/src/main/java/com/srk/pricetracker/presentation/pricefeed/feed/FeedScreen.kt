@@ -9,12 +9,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.srk.pricetracker.core.components.AppShell
 import com.srk.pricetracker.presentation.pricefeed.feed.components.FeedTopBar
 import com.srk.pricetracker.presentation.pricefeed.feed.components.StockItem
-import com.srk.pricetracker.presentation.pricefeed.model.Stock
+import com.srk.pricetracker.presentation.pricefeed.model.StockUiModel
 import com.srk.pricetracker.ui.theme.PriceTrackerTheme
 import kotlinx.coroutines.flow.collectLatest
 
@@ -42,7 +43,7 @@ fun FeedScreen(
 }
 
 @Composable
-private fun FeedContent(
+internal fun FeedContent(
     uiState: FeedContract.UiState = FeedContract.UiState(),
     onIntent: (FeedContract.Intent) -> Unit = {}
 ) {
@@ -56,11 +57,17 @@ private fun FeedContent(
             )
         },
         isLoading = uiState.isLoading,
+        errorMessage = uiState.error,
+        onErrorDismiss = { onIntent(FeedContract.Intent.DismissError) },
         screenContent = {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+            ) {
                 items(
                     items = uiState.stocks,
-                    key = { it.symbol }
+                    key = { it.symbol },
+                    contentType = { "stock_item" }
                 ) { stock ->
                     StockItem(
                         stock = stock,
@@ -80,12 +87,12 @@ private fun FeedContentPreview() {
         FeedContent(
             uiState = FeedContract.UiState(
                 stocks = listOf(
-                    Stock("AAPL", 150.0, 145.0),
-                    Stock("GOOG", 2800.0, 2810.0),
-                    Stock("MSFT", 300.0, 295.0),
-                    Stock("TSLA", 700.0, 710.0),
-                    Stock("AMZN", 3300.0, 3280.0),
-                    Stock("META", 500.0, 500.0)
+                    StockUiModel("AAPL", 150.0, 145.0),
+                    StockUiModel("GOOG", 2800.0, 2810.0),
+                    StockUiModel("MSFT", 300.0, 295.0),
+                    StockUiModel("TSLA", 700.0, 710.0),
+                    StockUiModel("AMZN", 3300.0, 3280.0),
+                    StockUiModel("META", 500.0, 500.0)
                 ).sortedByDescending { it.price }
             )
         )

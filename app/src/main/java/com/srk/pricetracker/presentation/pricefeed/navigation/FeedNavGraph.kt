@@ -2,6 +2,7 @@ package com.srk.pricetracker.presentation.pricefeed.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import androidx.navigation.navDeepLink
 import androidx.navigation.navigation
 import com.srk.pricetracker.presentation.navigation.LocalNavigator
 import com.srk.pricetracker.presentation.pricefeed.details.FeedDetailsScreen
@@ -23,9 +24,17 @@ fun NavGraphBuilder.feedNavGraph() {
                 }
             )
         }
-        composable<FeedDestinations.FeedDetailsScreen> {
+        composable<FeedDestinations.FeedDetailsScreen>(
+            deepLinks = listOf(
+                navDeepLink<FeedDestinations.FeedDetailsScreen>(
+                    basePath = "stocks://symbol"
+                )
+            )
+        ) {
             val navigator = LocalNavigator.current
-            FeedDetailsScreen()
+            FeedDetailsScreen(
+                onNavigateBack = navigator::navigateUp
+            )
         }
     }
 }
