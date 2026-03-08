@@ -1,7 +1,5 @@
 package com.srk.pricetracker.core.navigation
 
-import com.srk.pricetracker.core.Destination
-
 /**
  * Interface that handles navigation within the application.
  */
